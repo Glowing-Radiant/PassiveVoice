@@ -21,6 +21,7 @@ class SettingsRepository(private val context: Context) {
     val SPEECH_RATE = floatPreferencesKey("speech_rate")
     val PITCH = floatPreferencesKey("pitch")
     val VOLUME = floatPreferencesKey("volume")
+    val AUDIO_STREAM = stringPreferencesKey("audio_stream")
     val QUEUE_MODE = stringPreferencesKey("queue_mode")
     val AUTO_MUTE_WITH_TALKBACK = booleanPreferencesKey("auto_mute_with_talkback")
     val TTS_ENGINE = stringPreferencesKey("tts_engine")
@@ -62,6 +63,7 @@ class SettingsRepository(private val context: Context) {
         speechRate = prefs[Keys.SPEECH_RATE] ?: defaults.speechRate,
         pitch = prefs[Keys.PITCH] ?: defaults.pitch,
         volume = prefs[Keys.VOLUME] ?: defaults.volume,
+        audioStream = prefs[Keys.AUDIO_STREAM]?.let { runCatching { AudioStream.valueOf(it) }.getOrNull() } ?: defaults.audioStream,
         queueMode = prefs[Keys.QUEUE_MODE]?.let { runCatching { SpeechQueueMode.valueOf(it) }.getOrNull() } ?: defaults.queueMode,
         autoMuteWithTalkBack = prefs[Keys.AUTO_MUTE_WITH_TALKBACK] ?: defaults.autoMuteWithTalkBack,
         ttsEngine = prefs[Keys.TTS_ENGINE],
@@ -99,6 +101,8 @@ class SettingsRepository(private val context: Context) {
   suspend fun setPitch(pitch: Float) = context.dataStore.edit { it[Keys.PITCH] = pitch }
 
   suspend fun setVolume(volume: Float) = context.dataStore.edit { it[Keys.VOLUME] = volume }
+
+  suspend fun setAudioStream(stream: AudioStream) = context.dataStore.edit { it[Keys.AUDIO_STREAM] = stream.name }
 
   suspend fun setQueueMode(mode: SpeechQueueMode) = context.dataStore.edit { it[Keys.QUEUE_MODE] = mode.name }
 

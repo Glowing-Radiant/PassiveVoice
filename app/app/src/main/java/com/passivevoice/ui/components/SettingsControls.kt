@@ -21,12 +21,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 
 // Every control here is one TalkBack stop that reads its label, role and state together.
 
@@ -83,8 +86,9 @@ fun RadioRow(label: String, selected: Boolean, onSelect: () -> Unit, modifier: M
 }
 
 /**
- * Saves only when the drag (or TalkBack volume-key adjustment) finishes, and announces the
- * slider by name with a human-readable value instead of a bare percentage.
+ * Saves only when the drag (or TalkBack adjustment) finishes, and announces the slider by name
+ * with a human-readable value instead of a bare percentage. [bigSteps] become TalkBack actions
+ * ("Increase by 1") so a wide range doesn't take dozens of single-step swipes.
  */
 @Composable
 fun LabeledSlider(
@@ -95,8 +99,20 @@ fun LabeledSlider(
   valueText: (Float) -> String,
   onValueChange: (Float) -> Unit,
   modifier: Modifier = Modifier,
+  bigSteps: List<Pair<Float, String>> = emptyList(),
 ) {
   var current by remember(value) { mutableFloatStateOf(value) }
+  val jumpActions =
+    bigSteps.flatMap { (amount, amountText) ->
+      listOf(1f to "Increase by $amountText", -1f to "Decrease by $amountText").map { (sign, label) ->
+        CustomAccessibilityAction(label) {
+          // Snap to the 0.1 grid all our sliders use, so repeated jumps don't drift off the steps.
+          current = ((current + sign * amount) * 10).roundToInt().div(10f).coerceIn(range.start, range.endInclusive)
+          onValueChange(current)
+          true
+        }
+      }
+    }
   Column(modifier) {
     Text("$title: ${valueText(current)}", style = MaterialTheme.typography.titleMedium)
     Slider(
@@ -109,6 +125,7 @@ fun LabeledSlider(
         Modifier.semantics {
           contentDescription = title
           stateDescription = valueText(current)
+          if (jumpActions.isNotEmpty()) customActions = jumpActions
         },
     )
   }

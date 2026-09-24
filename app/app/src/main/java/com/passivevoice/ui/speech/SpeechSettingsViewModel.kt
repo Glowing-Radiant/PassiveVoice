@@ -3,6 +3,7 @@ package com.passivevoice.ui.speech
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.passivevoice.settings.AudioStream
 import com.passivevoice.settings.PassiveVoiceSettings
 import com.passivevoice.settings.SettingsRepository
 import com.passivevoice.settings.SpeechQueueMode
@@ -35,6 +36,8 @@ class SpeechSettingsViewModel(application: Application) : AndroidViewModel(appli
 
   fun setVolume(volume: Float) = viewModelScope.launch { settingsRepository.setVolume(volume) }
 
+  fun setAudioStream(stream: AudioStream) = viewModelScope.launch { settingsRepository.setAudioStream(stream) }
+
   fun setQueueMode(mode: SpeechQueueMode) = viewModelScope.launch { settingsRepository.setQueueMode(mode) }
 
   fun setTtsEngine(packageName: String?) = viewModelScope.launch { settingsRepository.setTtsEngine(packageName) }
@@ -56,7 +59,8 @@ class SpeechSettingsViewModel(application: Application) : AndroidViewModel(appli
     val current = settings.value
     val speak = {
       preview?.setVoiceParams(current.speechRate, current.pitch)
-      preview?.speak(SAMPLE_TEXT, SpeechPriority.HIGH, SpeechQueueMode.INTERRUPT, current.volume)
+      preview?.setOutput(current.audioStream, current.volume)
+      preview?.speak(SAMPLE_TEXT, SpeechPriority.HIGH, SpeechQueueMode.INTERRUPT)
     }
     val existing = preview
     if (existing != null && previewEngine == current.ttsEngine) {

@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.passivevoice.settings.AudioStream
 import com.passivevoice.settings.SpeechQueueMode
 import com.passivevoice.settings.Verbosity
 import com.passivevoice.ui.components.CheckboxRow
@@ -49,10 +50,30 @@ fun SpeechSettingsScreen(modifier: Modifier = Modifier, viewModel: SpeechSetting
 
     HorizontalDivider()
     SectionHeading("Voice")
-    LabeledSlider("Speech rate", settings.speechRate, 0.5f..2f, steps = 14, valueText = ::multiplier, onValueChange = viewModel::setSpeechRate)
-    LabeledSlider("Pitch", settings.pitch, 0.5f..2f, steps = 14, valueText = ::multiplier, onValueChange = viewModel::setPitch)
-    LabeledSlider("Volume", settings.volume, 0f..1f, steps = 9, valueText = { "${(it * 100).roundToInt()} percent" }, onValueChange = viewModel::setVolume)
+    // Same ranges as Android's own text-to-speech settings; each step is 0.1.
+    val multiplierJumps = listOf(0.5f to "0.5", 1f to "1")
+    LabeledSlider(
+      "Speech rate", settings.speechRate, 0.1f..6f, steps = 58, valueText = ::multiplier,
+      onValueChange = viewModel::setSpeechRate, bigSteps = multiplierJumps,
+    )
+    LabeledSlider(
+      "Pitch", settings.pitch, 0.2f..4f, steps = 37, valueText = ::multiplier,
+      onValueChange = viewModel::setPitch, bigSteps = multiplierJumps,
+    )
+    LabeledSlider(
+      "Volume", settings.volume, 0f..3f, steps = 29, valueText = ::volumeText,
+      onValueChange = viewModel::setVolume, bigSteps = listOf(0.5f to "50 percent"),
+    )
+    Text("Above 100 percent, speech is amplified beyond the channel's normal maximum. Very high boosts can distort.")
     OutlinedButton(onClick = viewModel::playSample) { Text("Play sample") }
+
+    RadioGroup(
+      title = "Audio channel",
+      options = AudioStream.entries,
+      selected = settings.audioStream,
+      labelFor = { it.label },
+      onSelect = viewModel::setAudioStream,
+    )
 
     HorizontalDivider()
     SectionHeading("Narrate")
@@ -99,3 +120,8 @@ fun SpeechSettingsScreen(modifier: Modifier = Modifier, viewModel: SpeechSetting
 }
 
 private fun multiplier(value: Float): String = String.format(Locale.US, "%.1f times", value)
+
+private fun volumeText(value: Float): String {
+  val percent = (value * 10).roundToInt() * 10
+  return if (percent > 100) "$percent percent, boosted" else "$percent percent"
+}

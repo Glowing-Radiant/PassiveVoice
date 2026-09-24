@@ -86,6 +86,7 @@ class PassiveVoiceService : AccessibilityService() {
         val engineChanged = speechInitialized && settings.ttsEngine != currentSettings.ttsEngine
         val needsInit = !speechInitialized || engineChanged
         currentSettings = settings
+        speechManager.setOutput(settings.audioStream, settings.volume)
         if (needsInit) {
           speechInitialized = true
           speechManager.initialize(settings.ttsEngine) { speechManager.setVoiceParams(settings.speechRate, settings.pitch) }
@@ -271,7 +272,7 @@ class PassiveVoiceService : AccessibilityService() {
         SpeechPolicy.isMuted(talkBackActiveThrottled(now), settings.autoMuteWithTalkBack) -> suppressedReason = "Muted (TalkBack active): \"$text\""
         contextManager.isDuplicate(text, now) -> suppressedReason = "Duplicate: \"$text\""
         else ->
-          when (speechManager.speak(text, output.priority, settings.queueMode, settings.volume)) {
+          when (speechManager.speak(text, output.priority, settings.queueMode)) {
             null -> suppressedReason = "Speech engine not ready: \"$text\""
             SpeechDecision.DROP -> suppressedReason = "Lower priority than current speech: \"$text\""
             else -> {

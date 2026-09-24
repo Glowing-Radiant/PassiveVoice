@@ -4,7 +4,9 @@ data class PassiveVoiceSettings(
   val verbosity: Verbosity = Verbosity.STANDARD,
   val speechRate: Float = 1.0f,
   val pitch: Float = 1.0f,
+  /** 1.0 = full volume of the chosen stream; above that, speech is boosted with a loudness enhancer. */
   val volume: Float = 1.0f,
+  val audioStream: AudioStream = AudioStream.ACCESSIBILITY,
   val queueMode: SpeechQueueMode = SpeechQueueMode.INTERRUPT,
   val autoMuteWithTalkBack: Boolean = true,
   val ttsEngine: String? = null, // null = system default engine

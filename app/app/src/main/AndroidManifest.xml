@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Attach a loudness enhancer to our own speech for volume boost above 100%. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
     <!-- Package visibility (API 30+): list launchable apps for per-app profiles, and installed TTS engines. -->
     <queries>
         <intent>
