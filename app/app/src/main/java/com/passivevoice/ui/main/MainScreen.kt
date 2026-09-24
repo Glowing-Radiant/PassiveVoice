@@ -5,11 +5,11 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -17,9 +17,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -28,10 +29,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
+import com.passivevoice.AppList
 import com.passivevoice.DebugLog
 import com.passivevoice.SpeechSettings
 import com.passivevoice.settings.PassiveVoiceSettings
 import com.passivevoice.theme.PassiveVoiceTheme
+import com.passivevoice.ui.components.CheckboxRow
+import com.passivevoice.ui.components.SectionHeading
 
 @Composable
 fun MainScreen(onItemClick: (NavKey) -> Unit, modifier: Modifier = Modifier, viewModel: MainScreenViewModel = viewModel()) {
@@ -51,6 +55,7 @@ fun MainScreen(onItemClick: (NavKey) -> Unit, modifier: Modifier = Modifier, vie
     },
     onAutoMuteChanged = viewModel::setAutoMuteWithTalkBack,
     onConfigureSpeech = { onItemClick(SpeechSettings) },
+    onConfigureApps = { onItemClick(AppList) },
     onOpenDebugLog = { onItemClick(DebugLog) },
     modifier = modifier,
   )
@@ -62,24 +67,22 @@ internal fun MainScreenContent(
   onOpenAccessibilitySettings: (Context) -> Unit,
   onAutoMuteChanged: (Boolean) -> Unit,
   onConfigureSpeech: () -> Unit,
+  onConfigureApps: () -> Unit,
   onOpenDebugLog: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
 
-  Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-    Text("PassiveVoice", style = MaterialTheme.typography.headlineMedium)
-    Text(
-      "Speak what the user does, without changing how the user touches the phone.",
-      style = MaterialTheme.typography.bodyMedium,
-    )
+  Column(modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Text("PassiveVoice", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
+    Text("Speaks what your touch just did, without changing how you touch the phone.", style = MaterialTheme.typography.bodyMedium)
 
     HorizontalDivider()
 
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-      Text("Status", style = MaterialTheme.typography.titleMedium)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
       Text(
-        if (state.serviceEnabled) "● Running" else "○ Not enabled",
+        if (state.serviceEnabled) "Status: Running" else "Status: Not enabled",
+        style = MaterialTheme.typography.titleMedium,
         color = if (state.serviceEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
       )
       Button(onClick = { onOpenAccessibilitySettings(context) }) {
@@ -89,18 +92,21 @@ internal fun MainScreenContent(
 
     HorizontalDivider()
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      Checkbox(checked = state.settings.autoMuteWithTalkBack, onCheckedChange = onAutoMuteChanged)
-      Text("Automatically mute when TalkBack is active")
-    }
+    SectionHeading("TalkBack")
+    CheckboxRow(
+      label = "Automatically mute when TalkBack is active",
+      checked = state.settings.autoMuteWithTalkBack,
+      onCheckedChange = onAutoMuteChanged,
+      summary = "Keeps the two from talking over each other.",
+    )
 
     HorizontalDivider()
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-      Text("Speech: ${state.settings.verbosity.name.lowercase().replaceFirstChar { it.uppercase() }}", style = MaterialTheme.typography.bodyMedium)
-      OutlinedButton(onClick = onConfigureSpeech) { Text("Configure Speech") }
-      OutlinedButton(onClick = onOpenDebugLog) { Text("Live Event Monitor") }
-    }
+    SectionHeading("Settings")
+    Text("Speech: ${state.settings.verbosity.name.lowercase().replaceFirstChar { it.uppercase() }}", style = MaterialTheme.typography.bodyMedium)
+    OutlinedButton(onClick = onConfigureSpeech) { Text("Configure Speech") }
+    OutlinedButton(onClick = onConfigureApps) { Text("Configure Apps") }
+    OutlinedButton(onClick = onOpenDebugLog) { Text("Live Event Monitor") }
   }
 }
 
@@ -113,6 +119,7 @@ private fun MainScreenPreview() {
       onOpenAccessibilitySettings = {},
       onAutoMuteChanged = {},
       onConfigureSpeech = {},
+      onConfigureApps = {},
       onOpenDebugLog = {},
       modifier = Modifier.padding(16.dp),
     )

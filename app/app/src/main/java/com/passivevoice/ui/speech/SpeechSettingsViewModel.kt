@@ -7,6 +7,8 @@ import com.passivevoice.settings.PassiveVoiceSettings
 import com.passivevoice.settings.SettingsRepository
 import com.passivevoice.settings.SpeechQueueMode
 import com.passivevoice.settings.Verbosity
+import com.passivevoice.speech.SpeechManager
+import com.passivevoice.speech.SpeechPriority
 import com.passivevoice.speech.TtsEngineInfo
 import com.passivevoice.speech.TtsEngineManager
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +24,9 @@ class SpeechSettingsViewModel(application: Application) : AndroidViewModel(appli
 
   val availableEngines: List<TtsEngineInfo> = TtsEngineManager.listAvailableEngines(application)
 
+  private var preview: SpeechManager? = null
+  private var previewEngine: String? = null
+
   fun setVerbosity(verbosity: Verbosity) = viewModelScope.launch { settingsRepository.setVerbosity(verbosity) }
 
   fun setSpeechRate(rate: Float) = viewModelScope.launch { settingsRepository.setSpeechRate(rate) }
@@ -33,4 +38,41 @@ class SpeechSettingsViewModel(application: Application) : AndroidViewModel(appli
   fun setQueueMode(mode: SpeechQueueMode) = viewModelScope.launch { settingsRepository.setQueueMode(mode) }
 
   fun setTtsEngine(packageName: String?) = viewModelScope.launch { settingsRepository.setTtsEngine(packageName) }
+
+  fun setSpeechDelayMs(delayMs: Int) = viewModelScope.launch { settingsRepository.setSpeechDelayMs(delayMs) }
+
+  fun setNarrateClicks(enabled: Boolean) = viewModelScope.launch { settingsRepository.setNarrateClicks(enabled) }
+
+  fun setNarrateToggles(enabled: Boolean) = viewModelScope.launch { settingsRepository.setNarrateToggles(enabled) }
+
+  fun setNarrateSelections(enabled: Boolean) = viewModelScope.launch { settingsRepository.setNarrateSelections(enabled) }
+
+  fun setNarrateScroll(enabled: Boolean) = viewModelScope.launch { settingsRepository.setNarrateScroll(enabled) }
+
+  fun setNarrateWindowChanges(enabled: Boolean) = viewModelScope.launch { settingsRepository.setNarrateWindowChanges(enabled) }
+
+  /** Speaks a sample with the current engine, rate, pitch and volume. */
+  fun playSample() {
+    val current = settings.value
+    val speak = {
+      preview?.setVoiceParams(current.speechRate, current.pitch)
+      preview?.speak(SAMPLE_TEXT, SpeechPriority.HIGH, SpeechQueueMode.INTERRUPT, current.volume)
+    }
+    val existing = preview
+    if (existing != null && previewEngine == current.ttsEngine) {
+      speak()
+    } else {
+      existing?.shutdown()
+      previewEngine = current.ttsEngine
+      preview = SpeechManager(getApplication()).also { it.initialize(current.ttsEngine) { speak() } }
+    }
+  }
+
+  override fun onCleared() {
+    preview?.shutdown()
+  }
+
+  private companion object {
+    const val SAMPLE_TEXT = "Liked. Wi-Fi on. Scrolled down."
+  }
 }

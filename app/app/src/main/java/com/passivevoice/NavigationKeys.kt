@@ -7,4 +7,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object SpeechSettings : NavKey
 
+@Serializable data object AppList : NavKey
+
+@Serializable data class AppSettings(val packageName: String) : NavKey
+
 @Serializable data object DebugLog : NavKey
