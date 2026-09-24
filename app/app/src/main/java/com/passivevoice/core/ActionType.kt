@@ -1,0 +1,19 @@
+package com.passivevoice.core
+
+enum class ActionType {
+  CLICK,
+  LONG_CLICK,
+  SCROLL,
+  SELECTION,
+  TOGGLE,
+  TEXT_INPUT,
+  WINDOW_OPENED,
+  WINDOW_CLOSED,
+  TAB_CHANGED,
+  MENU_OPENED,
+  MENU_CLOSED,
+  NAVIGATION,
+  FOCUS_CHANGED,
+  CONTENT_CHANGED,
+  UNKNOWN,
+}

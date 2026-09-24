@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">PassiveVoice</string>
+    <string name="accessibility_service_description">Speaks a short confirmation of what your touch just did — such as \"Liked\" or \"Wi-Fi on\" — without changing how you touch the screen. Stays silent automatically while TalkBack is active.</string>
+</resources>
