@@ -17,6 +17,8 @@ data class NodeSnapshot(
   val isPassword: Boolean = false,
   val isScrollable: Boolean = false,
   val isEditable: Boolean = false,
+  /** Checked state of a switch/checkbox nested inside this (non-checkable) row, e.g. a Settings row. */
+  val innerChecked: Boolean? = null,
 ) {
   /** Best-effort human-readable label, preferring explicit text over content description. */
   val label: String?

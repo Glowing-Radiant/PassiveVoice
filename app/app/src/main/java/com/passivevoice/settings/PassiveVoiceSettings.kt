@@ -9,4 +9,22 @@ data class PassiveVoiceSettings(
   val autoMuteWithTalkBack: Boolean = true,
   val ttsEngine: String? = null, // null = system default engine
   val debugLoggingEnabled: Boolean = false,
+  /** How long to wait after a tap before speaking, so a state change the tap causes ("Follow" → "Following") can be heard instead of the old label. */
+  val speechDelayMs: Int = 250,
+  val narrateClicks: Boolean = true,
+  val narrateToggles: Boolean = true,
+  val narrateSelections: Boolean = true,
+  val narrateScroll: Boolean = true,
+  val narrateWindowChanges: Boolean = true,
+  val appProfiles: Map<String, AppProfile> = emptyMap(),
 )
+
+/** Per-app overrides (PRD §23). Null fields inherit the global setting. */
+data class AppProfile(
+  val narrationEnabled: Boolean = true,
+  val verbosity: Verbosity? = null,
+  val scrollNarration: Boolean? = null,
+) {
+  val isDefault: Boolean
+    get() = narrationEnabled && verbosity == null && scrollNarration == null
+}

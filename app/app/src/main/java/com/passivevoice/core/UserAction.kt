@@ -9,7 +9,9 @@ data class UserAction(
   val role: String?,
   val value: String?,
   val node: NodeSnapshot?,
-  val scrollDelta: Int = 0,
+  /** The node as it was when the event fired, when [node] has since been re-read to observe a state change. */
+  val before: NodeSnapshot? = null,
+  val scroll: ScrollSummary? = null,
   val timestamp: Long,
   val confidence: Float = 1.0f,
 )

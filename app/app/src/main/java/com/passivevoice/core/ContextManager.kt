@@ -10,18 +10,27 @@ class ContextManager(private val dedupWindowMs: Long = 1200L) {
 
   fun previousToggleState(key: String): Boolean? = state.previousToggleStates[key]
 
-  fun previousScrollPosition(key: String): Int? = state.previousScrollPositions[key]
+  fun previousScrollPosition(key: String): ScrollPosition? = state.previousScrollPositions[key]
 
   fun recordToggleState(key: String, checked: Boolean) {
     state.previousToggleStates[key] = checked
   }
 
-  fun recordScrollPosition(key: String, position: Int) {
+  fun recordScrollPosition(key: String, position: ScrollPosition) {
     state.previousScrollPositions[key] = position
   }
 
-  fun recordClick(key: String) {
-    state.previousClickedNodeKey = key
+  fun recordClick(label: String?, now: Long) {
+    state.lastClickLabel = label
+    state.lastClickAt = now
+  }
+
+  /** Whether a screen titled [title] is simply the one the user just tapped their way into. */
+  fun wasJustTapped(title: String, now: Long): Boolean =
+    state.lastClickLabel.equals(title, ignoreCase = true) && now - state.lastClickAt <= TAP_TO_WINDOW_MS
+
+  private companion object {
+    const val TAP_TO_WINDOW_MS = 3000L
   }
 
   fun recordFocus(key: String) {

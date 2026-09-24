@@ -5,10 +5,11 @@ data class ContextState(
   var currentPackage: String? = null,
   var currentWindowTitle: String? = null,
   var previousFocusedNodeKey: String? = null,
-  var previousClickedNodeKey: String? = null,
+  var lastClickLabel: String? = null,
+  var lastClickAt: Long = 0L,
   var previousText: String? = null,
   val previousToggleStates: MutableMap<String, Boolean> = mutableMapOf(),
-  val previousScrollPositions: MutableMap<String, Int> = mutableMapOf(),
+  val previousScrollPositions: MutableMap<String, ScrollPosition> = mutableMapOf(),
   var lastSpokenText: String? = null,
   var lastSpeechTimestamp: Long = 0L,
 )
