@@ -124,6 +124,14 @@ class GenericInterpreterTest {
   }
 
   @Test
+  fun `a click right after selecting the same tab adds nothing`() {
+    val context = ContextManager()
+    context.recordSelection("Home", now = 1_000L)
+    assertNull(interpret(action(ActionType.CLICK, label = "Home").copy(timestamp = 1_200L), context = context))
+    assertEquals("Home", interpret(action(ActionType.CLICK, label = "Home").copy(timestamp = 9_000L), context = context)?.text)
+  }
+
+  @Test
   fun `click with a label speaks the label`() {
     assertEquals("Share", interpret(action(ActionType.CLICK, label = "Share", role = "Button"))?.text)
   }

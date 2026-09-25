@@ -29,8 +29,18 @@ class ContextManager(private val dedupWindowMs: Long = 1200L) {
   fun wasJustTapped(title: String, now: Long): Boolean =
     state.lastClickLabel.equals(title, ignoreCase = true) && now - state.lastClickAt <= TAP_TO_WINDOW_MS
 
+  fun recordSelection(label: String?, now: Long) {
+    state.lastSelectionLabel = label
+    state.lastSelectionAt = now
+  }
+
+  /** Tab bars report one tap twice, as "selected" then "clicked"; the click adds nothing. */
+  fun wasJustSelected(label: String?, now: Long): Boolean =
+    label != null && state.lastSelectionLabel.equals(label, ignoreCase = true) && now - state.lastSelectionAt <= SELECT_TO_CLICK_MS
+
   private companion object {
     const val TAP_TO_WINDOW_MS = 3000L
+    const val SELECT_TO_CLICK_MS = 1500L
   }
 
   fun recordFocus(key: String) {

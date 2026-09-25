@@ -79,6 +79,7 @@ private fun DebugEntryRow(entry: DebugLogEntry) {
       Text("${timeFormat.format(entry.timestamp)}  ${entry.eventType}", style = MaterialTheme.typography.labelMedium)
       Text(entry.packageName ?: "—", style = MaterialTheme.typography.bodySmall)
       if (entry.className != null) Text(entry.className, style = MaterialTheme.typography.bodySmall)
+      if (entry.viewId != null) Text("ID: ${entry.viewId}", style = MaterialTheme.typography.bodySmall)
       if (!entry.text.isNullOrBlank()) Text("Text: ${entry.text}", style = MaterialTheme.typography.bodySmall)
       Text("Interpretation: ${entry.interpretation ?: "—"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
       when {

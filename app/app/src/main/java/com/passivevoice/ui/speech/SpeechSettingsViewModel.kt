@@ -54,6 +54,8 @@ class SpeechSettingsViewModel(application: Application) : AndroidViewModel(appli
 
   fun setNarrateWindowChanges(enabled: Boolean) = viewModelScope.launch { settingsRepository.setNarrateWindowChanges(enabled) }
 
+  fun setAppAdaptersEnabled(enabled: Boolean) = viewModelScope.launch { settingsRepository.setAppAdaptersEnabled(enabled) }
+
   /** Speaks a sample with the current engine, rate, pitch and volume. */
   fun playSample() {
     val current = settings.value

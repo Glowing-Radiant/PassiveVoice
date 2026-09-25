@@ -55,7 +55,7 @@ object GenericInterpreter : ActionInterpreter {
 
   override fun interpret(action: UserAction, context: ContextManager, verbosity: Verbosity): SpeechOutput? =
     when (action.type) {
-      ActionType.CLICK -> interpretClick(action, verbosity)
+      ActionType.CLICK -> if (context.wasJustSelected(action.label, action.timestamp)) null else interpretClick(action, verbosity)
       ActionType.TOGGLE -> interpretToggle(action, verbosity)
       ActionType.SELECTION -> interpretSelection(action, verbosity)
       ActionType.TAB_CHANGED -> interpretTabChanged(action, verbosity)

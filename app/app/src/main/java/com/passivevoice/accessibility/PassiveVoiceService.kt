@@ -1,14 +1,26 @@
 package com.passivevoice.accessibility
 
+import android.Manifest
 import android.accessibilityservice.AccessibilityService
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
+import androidx.core.content.ContextCompat
+import com.passivevoice.debug.TreeDumper
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.passivevoice.adapters.AdapterResult
+import com.passivevoice.adapters.AppAdapter
+import com.passivevoice.adapters.AppAdapterManager
+import com.passivevoice.adapters.LiveScreen
+import com.passivevoice.adapters.Screen
 import com.passivevoice.core.ActionType
 import com.passivevoice.core.ContextManager
 import com.passivevoice.core.EventNormalizer
@@ -18,6 +30,7 @@ import com.passivevoice.core.UserAction
 import com.passivevoice.debug.DebugEventBus
 import com.passivevoice.debug.DebugLogEntry
 import com.passivevoice.interpreter.GenericInterpreter
+import com.passivevoice.interpreter.SpeechOutput
 import com.passivevoice.settings.NarrationPolicy
 import com.passivevoice.settings.PassiveVoiceSettings
 import com.passivevoice.settings.SettingsRepository
@@ -51,6 +64,9 @@ class PassiveVoiceService : AccessibilityService() {
   @Volatile private var cachedTalkBackActive = false
   private var lastTalkBackCheckMs = 0L
   private val lastContentChangedMsByPackage = mutableMapOf<String, Long>()
+  private val lastProbeMsByPackage = mutableMapOf<String, Long>()
+  private val settledProbes = mutableMapOf<String, Runnable>()
+  private val adapterManager = AppAdapterManager()
 
   // Accessibility callbacks, the handler and these fields are all confined to the main thread.
   private var pendingClick: PendingClick? = null
@@ -80,6 +96,7 @@ class PassiveVoiceService : AccessibilityService() {
     speechManager = SpeechManager(applicationContext)
     settingsRepository = SettingsRepository(applicationContext)
     _isRunning.value = true
+    registerTreeDumpReceiver()
 
     serviceScope.launch {
       settingsRepository.settings.collect { settings ->
@@ -108,6 +125,7 @@ class PassiveVoiceService : AccessibilityService() {
 
   private fun handleEvent(event: AccessibilityEvent) {
     val now = System.currentTimeMillis()
+    if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) scheduleSettledProbe(event.packageName?.toString(), event.className?.toString())
     if (isThrottledContentChange(event, now)) return
 
     if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
@@ -139,6 +157,10 @@ class PassiveVoiceService : AccessibilityService() {
           }
         ActionType.SCROLL -> collectScroll(event, action, className)
         ActionType.WINDOW_OPENED, ActionType.MENU_OPENED -> holdWindow(action, eventType, className)
+        ActionType.CONTENT_CHANGED -> {
+          narrate(action, eventType, className, debugText(event, action))
+          probeAdapter(action.packageName, className, now, force = false)
+        }
         else -> narrate(action, eventType, className, debugText(event, action))
       }
       if (action.type != ActionType.WINDOW_OPENED && action.type != ActionType.MENU_OPENED) updateWindowContext(action)
@@ -246,26 +268,82 @@ class PassiveVoiceService : AccessibilityService() {
     contextManager.recordScrollPosition(pending.key, ScrollAnalyzer.settledPosition(pending.samples, summary, previous, now))
 
     val count = pending.samples.size
-    val debugText = "$count scroll event${if (count == 1) "" else "s"}"
+    val position = if (summary.fromIndex >= 0) ", items ${summary.fromIndex}-${summary.toIndex} of ${summary.itemCount}" else ""
+    val debugText = "$count scroll event${if (count == 1) "" else "s"}$position"
     if (summary.isBounce) {
-      logDebug(now, pending.latest.packageName, SCROLL_EVENT_TYPE, pending.className, debugText, ActionType.SCROLL.name, null, "Spring-back at list edge")
+      logDebug(now, pending.latest.packageName, SCROLL_EVENT_TYPE, pending.className, debugText, ActionType.SCROLL.name, null, "Spring-back at list edge", pending.latest.node?.viewIdResourceName)
       return
     }
     narrate(pending.latest.copy(scroll = summary), SCROLL_EVENT_TYPE, pending.className, debugText)
   }
 
-  /** The single path every action takes to speech: policy → interpretation → mute → dedup → priority. */
-  private fun narrate(action: UserAction, eventType: String, className: String?, debugText: String?) {
+  /**
+   * Lets an app adapter look at the screen after its content changed, for feeds (YouTube Shorts)
+   * whose swipes produce no scroll events. Rate-limited: playback keeps the content changing.
+   */
+  private fun probeAdapter(packageName: String?, className: String?, now: Long, force: Boolean) {
+    val settings = currentSettings
+    if (!settings.appAdaptersEnabled) return
+    val adapter = adapterManager.forPackage(packageName) ?: return
+    if (!force && now - (lastProbeMsByPackage[adapter.packageName] ?: 0L) < ADAPTER_PROBE_INTERVAL_MS) return
+    lastProbeMsByPackage[adapter.packageName] = now
+
+    val verbosity = NarrationPolicy.verbosityFor(settings, adapter.packageName)
+    val output = runAdapter(adapter) { screen -> adapter.onContentChanged(screen, contextManager, verbosity) } ?: return
+    // A new Short on screen means the user swiped: it's scroll narration as far as settings go.
+    val action = UserAction(ActionType.SCROLL, adapter.packageName, null, null, null, null, node = null, timestamp = now)
+    narrate(action, ADAPTER_EVENT_TYPE, className, output.text, precomputed = output)
+  }
+
+  /**
+   * Throttling can leave the last probe mid-transition (old Short gone, new one not loaded yet),
+   * so always look once more shortly after the app's content stops changing.
+   */
+  private fun scheduleSettledProbe(packageName: String?, className: String?) {
+    if (packageName == null || adapterManager.forPackage(packageName) == null) return
+    settledProbes.remove(packageName)?.let(handler::removeCallbacks)
+    val probe = Runnable {
+      settledProbes.remove(packageName)
+      probeAdapter(packageName, className, System.currentTimeMillis(), force = true)
+    }
+    settledProbes[packageName] = probe
+    handler.postDelayed(probe, ADAPTER_SETTLE_MS)
+  }
+
+  private fun <T> runAdapter(adapter: AppAdapter, block: (Screen) -> T): T? =
+    try {
+      LiveScreen(this).use(block)
+    } catch (e: Exception) {
+      Log.e(TAG, "${adapter.packageName} adapter failed", e)
+      null
+    }
+
+  /** The single path every action takes to speech: policy → adapter or generic interpretation → mute → dedup → priority. */
+  private fun narrate(action: UserAction, eventType: String, className: String?, debugText: String?, precomputed: SpeechOutput? = null) {
     val now = System.currentTimeMillis()
     val settings = currentSettings
     val packageName = action.packageName
-
+    val verbosity = NarrationPolicy.verbosityFor(settings, packageName)
     val blockReason = NarrationPolicy.blockReason(settings, packageName, action.type)
-    val output =
-      if (blockReason == null) GenericInterpreter.interpret(action, contextManager, NarrationPolicy.verbosityFor(settings, packageName)) else null
+    val appName = AppAdapterManager.SUPPORTED_APPS[packageName]
+
+    var interpretation = action.type.name
+    var suppressedReason: String? = blockReason
+    val output: SpeechOutput? =
+      when {
+        blockReason != null -> null
+        precomputed != null -> precomputed.also { interpretation += " ($appName)" }
+        else -> {
+          val adapter = if (settings.appAdaptersEnabled) adapterManager.forPackage(packageName) else null
+          when (val result = adapter?.let { a -> runAdapter(a) { screen -> a.interpret(action, screen, contextManager, verbosity) } }) {
+            is AdapterResult.Speak -> result.output.also { interpretation += " ($appName)" }
+            AdapterResult.Silence -> null.also { suppressedReason = "Left to the $appName adapter" }
+            null -> GenericInterpreter.interpret(action, contextManager, verbosity)
+          }
+        }
+      }
 
     var spoken: String? = null
-    var suppressedReason: String? = blockReason
     if (output != null) {
       val text = output.text
       when {
@@ -283,8 +361,12 @@ class PassiveVoiceService : AccessibilityService() {
       }
     }
 
-    if (action.type == ActionType.CLICK || action.type == ActionType.TOGGLE) contextManager.recordClick(action.label, now)
-    logDebug(now, packageName, eventType, className, debugText, action.type.name, spoken, suppressedReason)
+    when (action.type) {
+      ActionType.CLICK, ActionType.TOGGLE -> contextManager.recordClick(action.label, now)
+      ActionType.SELECTION, ActionType.TAB_CHANGED -> contextManager.recordSelection(action.label, now)
+      else -> Unit
+    }
+    logDebug(now, packageName, eventType, className, debugText, interpretation, spoken, suppressedReason, action.node?.viewIdResourceName)
   }
 
   private fun updateWindowContext(action: UserAction) {
@@ -314,12 +396,13 @@ class PassiveVoiceService : AccessibilityService() {
     interpretation: String?,
     speech: String?,
     suppressedReason: String?,
+    viewId: String? = null,
   ) {
     if (!currentSettings.debugLoggingEnabled) return
-    DebugEventBus.log(DebugLogEntry(now, packageName, eventType, className, text, interpretation, speech, suppressedReason))
+    DebugEventBus.log(DebugLogEntry(now, packageName, eventType, className, viewId, text, interpretation, speech, suppressedReason))
     // Mirrored to logcat (readable only over adb) so a full session can be reviewed from a computer.
     val outcome = speech?.let { "SPOKE \"$it\"" } ?: suppressedReason?.let { "SUPPRESSED $it" } ?: "-"
-    Log.d(DEBUG_TAG, "$eventType | $packageName | ${className ?: "-"} | ${text ?: "-"} | ${interpretation ?: "-"} | $outcome")
+    Log.d(DEBUG_TAG, "$eventType | $packageName | ${className ?: "-"} | ${viewId ?: "-"} | ${text ?: "-"} | ${interpretation ?: "-"} | $outcome")
   }
 
   private fun talkBackActiveThrottled(now: Long): Boolean {
@@ -330,17 +413,32 @@ class PassiveVoiceService : AccessibilityService() {
     return cachedTalkBackActive
   }
 
+  private var treeDumpReceiver: BroadcastReceiver? = null
+
+  private fun registerTreeDumpReceiver() {
+    if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
+    val receiver =
+      object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = TreeDumper.dump(this@PassiveVoiceService)
+      }
+    // DUMP is held by the adb shell but not by ordinary apps, so only a developer can trigger a dump.
+    ContextCompat.registerReceiver(this, receiver, IntentFilter(TreeDumper.ACTION), Manifest.permission.DUMP, null, ContextCompat.RECEIVER_EXPORTED)
+    treeDumpReceiver = receiver
+  }
+
   override fun onInterrupt() {
     if (::speechManager.isInitialized) speechManager.stop()
   }
 
   override fun onDestroy() {
     super.onDestroy()
+    treeDumpReceiver?.let(::unregisterReceiver)
     handler.removeCallbacksAndMessages(null)
     pendingClick?.let { @Suppress("DEPRECATION") it.source.recycle() }
     pendingClick = null
     pendingWindow = null
     pendingScrolls.clear()
+    settledProbes.clear()
     if (::speechManager.isInitialized) speechManager.shutdown()
     serviceScope.cancel()
     _isRunning.value = false
@@ -355,6 +453,9 @@ class PassiveVoiceService : AccessibilityService() {
     /** Quiet period after the last scroll event before a gesture counts as finished. */
     private const val SCROLL_SETTLE_MS = 300L
     private const val SCROLL_EVENT_TYPE = "SCROLL_GESTURE"
+    private const val ADAPTER_EVENT_TYPE = "ADAPTER_PROBE"
+    private const val ADAPTER_PROBE_INTERVAL_MS = 500L
+    private const val ADAPTER_SETTLE_MS = 400L
 
     /** Splash screens hand over to the real activity within a few hundred milliseconds. */
     private const val WINDOW_SETTLE_MS = 400L

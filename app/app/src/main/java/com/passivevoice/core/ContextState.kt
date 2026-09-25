@@ -7,6 +7,8 @@ data class ContextState(
   var previousFocusedNodeKey: String? = null,
   var lastClickLabel: String? = null,
   var lastClickAt: Long = 0L,
+  var lastSelectionLabel: String? = null,
+  var lastSelectionAt: Long = 0L,
   var previousText: String? = null,
   val previousToggleStates: MutableMap<String, Boolean> = mutableMapOf(),
   val previousScrollPositions: MutableMap<String, ScrollPosition> = mutableMapOf(),

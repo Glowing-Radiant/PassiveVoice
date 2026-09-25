@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.passivevoice.adapters.AppAdapterManager
 import com.passivevoice.settings.AudioStream
 import com.passivevoice.settings.SpeechQueueMode
 import com.passivevoice.settings.Verbosity
@@ -82,6 +83,12 @@ fun SpeechSettingsScreen(modifier: Modifier = Modifier, viewModel: SpeechSetting
     CheckboxRow("Tabs and selections", settings.narrateSelections, viewModel::setNarrateSelections)
     CheckboxRow("Scrolling", settings.narrateScroll, viewModel::setNarrateScroll)
     CheckboxRow("Screens and menus opening", settings.narrateWindowChanges, viewModel::setNarrateWindowChanges)
+    CheckboxRow(
+      label = "App-specific narration",
+      checked = settings.appAdaptersEnabled,
+      onCheckedChange = viewModel::setAppAdaptersEnabled,
+      summary = "In ${AppAdapterManager.SUPPORTED_APPS.values.joinToString(" and ")}: reels, Shorts and posts by name, such as \"Next reel, by …\"",
+    )
 
     HorizontalDivider()
     SectionHeading("Timing")

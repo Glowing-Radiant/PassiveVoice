@@ -18,6 +18,8 @@ data class PassiveVoiceSettings(
   val narrateSelections: Boolean = true,
   val narrateScroll: Boolean = true,
   val narrateWindowChanges: Boolean = true,
+  /** Richer narration in apps PassiveVoice knows (Instagram, YouTube): "Next reel, by …" instead of "Next item". */
+  val appAdaptersEnabled: Boolean = true,
   val appProfiles: Map<String, AppProfile> = emptyMap(),
 )
 

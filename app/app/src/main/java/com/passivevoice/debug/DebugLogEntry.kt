@@ -5,6 +5,7 @@ data class DebugLogEntry(
   val packageName: String?,
   val eventType: String,
   val className: String?,
+  val viewId: String? = null,
   val text: String?,
   val interpretation: String?,
   val speech: String?,
