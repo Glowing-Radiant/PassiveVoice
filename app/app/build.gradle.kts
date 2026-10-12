@@ -1,8 +1,20 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
 }
+
+// Release signing comes from PV_* environment variables (CI) or a gitignored keystore.properties
+// (local builds). With neither, release builds come out unsigned.
+val keystoreProperties =
+  Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use(::load)
+  }
+
+fun signingValue(property: String, env: String): String? = providers.environmentVariable(env).orNull ?: keystoreProperties.getProperty(property)
 
 android {
     namespace = "com.passivevoice"
@@ -11,12 +23,23 @@ android {
         applicationId = "com.passivevoice"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        // The release workflow derives both from the git tag (v0.4.0 → 0.4.0, 400).
+        versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
+        versionName = providers.gradleProperty("versionName").orNull ?: "1.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = signingValue("storeFile", "PV_KEYSTORE_FILE")?.let(::file)
+            storePassword = signingValue("storePassword", "PV_KEYSTORE_PASSWORD")
+            keyAlias = signingValue("keyAlias", "PV_KEY_ALIAS")
+            keyPassword = signingValue("keyPassword", "PV_KEY_PASSWORD")
+        }
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release").takeIf { it.storeFile != null }
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

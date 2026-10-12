@@ -1,0 +1,68 @@
+name: Release
+
+# Push a tag like v0.4.0 to build a signed APK and publish it as a GitHub release.
+# An annotated tag's message (git tag -a v0.4.0 -m "...") becomes the release highlights.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Checkout replaces an annotated tag with a lightweight one; restore it so its message is readable.
+      - name: Fetch tags
+        run: git fetch --force --tags
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Version from tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          IFS=. read -r major minor patch <<< "${version%%-*}"
+          echo "VERSION_NAME=$version" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$(( major * 10000 + minor * 100 + ${patch:-0} ))" >> "$GITHUB_ENV"
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Build signed APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          PV_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          PV_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          PV_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          export PV_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$PV_KEYSTORE_FILE"
+          ./gradlew assembleRelease -PversionName="$VERSION_NAME" -PversionCode="$VERSION_CODE"
+          rm "$PV_KEYSTORE_FILE"
+          # Without signing secrets Gradle writes app-release-unsigned.apk instead, which phones refuse to install.
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/PassiveVoice-$VERSION_NAME.apk"
+
+      - name: Release notes
+        run: python3 ../.github/scripts/release_notes.py "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" > "$RUNNER_TEMP/notes.md"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          [[ "$VERSION_NAME" == *-* ]] && prerelease="--prerelease"
+          gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP/PassiveVoice-$VERSION_NAME.apk" \
+            --title "PassiveVoice $VERSION_NAME" --notes-file "$RUNNER_TEMP/notes.md" $prerelease
