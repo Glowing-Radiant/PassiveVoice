@@ -12,6 +12,8 @@ data class UserAction(
   /** The node as it was when the event fired, when [node] has since been re-read to observe a state change. */
   val before: NodeSnapshot? = null,
   val scroll: ScrollSummary? = null,
+  /** For [ActionType.TEXT_INPUT]: what was typed or deleted. Spoken, never logged. */
+  val textChange: TextChange? = null,
   val timestamp: Long,
   val confidence: Float = 1.0f,
 )

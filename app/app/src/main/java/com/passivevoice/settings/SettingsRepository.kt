@@ -32,6 +32,8 @@ class SettingsRepository(private val context: Context) {
     val NARRATE_SELECTIONS = booleanPreferencesKey("narrate_selections")
     val NARRATE_SCROLL = booleanPreferencesKey("narrate_scroll")
     val NARRATE_WINDOW_CHANGES = booleanPreferencesKey("narrate_window_changes")
+    val NARRATE_TYPED_CHARACTERS = booleanPreferencesKey("narrate_typed_characters")
+    val NARRATE_TYPED_WORDS = booleanPreferencesKey("narrate_typed_words")
     val APP_ADAPTERS_ENABLED = booleanPreferencesKey("app_adapters_enabled")
 
     // Per-app overrides live under "app:<package>:<field>"; package names never contain ':'.
@@ -75,6 +77,8 @@ class SettingsRepository(private val context: Context) {
         narrateSelections = prefs[Keys.NARRATE_SELECTIONS] ?: defaults.narrateSelections,
         narrateScroll = prefs[Keys.NARRATE_SCROLL] ?: defaults.narrateScroll,
         narrateWindowChanges = prefs[Keys.NARRATE_WINDOW_CHANGES] ?: defaults.narrateWindowChanges,
+        narrateTypedCharacters = prefs[Keys.NARRATE_TYPED_CHARACTERS] ?: defaults.narrateTypedCharacters,
+        narrateTypedWords = prefs[Keys.NARRATE_TYPED_WORDS] ?: defaults.narrateTypedWords,
         appAdaptersEnabled = prefs[Keys.APP_ADAPTERS_ENABLED] ?: defaults.appAdaptersEnabled,
         appProfiles = readAppProfiles(prefs),
       )
@@ -128,6 +132,10 @@ class SettingsRepository(private val context: Context) {
   suspend fun setNarrateScroll(enabled: Boolean) = context.dataStore.edit { it[Keys.NARRATE_SCROLL] = enabled }
 
   suspend fun setNarrateWindowChanges(enabled: Boolean) = context.dataStore.edit { it[Keys.NARRATE_WINDOW_CHANGES] = enabled }
+
+  suspend fun setNarrateTypedCharacters(enabled: Boolean) = context.dataStore.edit { it[Keys.NARRATE_TYPED_CHARACTERS] = enabled }
+
+  suspend fun setNarrateTypedWords(enabled: Boolean) = context.dataStore.edit { it[Keys.NARRATE_TYPED_WORDS] = enabled }
 
   suspend fun setAppAdaptersEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.APP_ADAPTERS_ENABLED] = enabled }
 

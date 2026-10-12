@@ -41,6 +41,14 @@ class NarrationPolicyTest {
   }
 
   @Test
+  fun `typing echo is blocked only when both characters and words are off`() {
+    assertNull(NarrationPolicy.blockReason(PassiveVoiceSettings(narrateTypedCharacters = false), app, ActionType.TEXT_INPUT))
+    assertNull(NarrationPolicy.blockReason(PassiveVoiceSettings(narrateTypedWords = false), app, ActionType.TEXT_INPUT))
+    val bothOff = PassiveVoiceSettings(narrateTypedCharacters = false, narrateTypedWords = false)
+    assertNotNull(NarrationPolicy.blockReason(bothOff, app, ActionType.TEXT_INPUT))
+  }
+
+  @Test
   fun `per-app verbosity overrides the global verbosity`() {
     val settings = PassiveVoiceSettings(verbosity = Verbosity.STANDARD, appProfiles = mapOf(app to AppProfile(verbosity = Verbosity.MINIMAL)))
     assertEquals(Verbosity.MINIMAL, NarrationPolicy.verbosityFor(settings, app))

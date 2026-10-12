@@ -84,6 +84,18 @@ fun SpeechSettingsScreen(modifier: Modifier = Modifier, viewModel: SpeechSetting
     CheckboxRow("Scrolling", settings.narrateScroll, viewModel::setNarrateScroll)
     CheckboxRow("Screens and menus opening", settings.narrateWindowChanges, viewModel::setNarrateWindowChanges)
     CheckboxRow(
+      label = "Typed characters",
+      checked = settings.narrateTypedCharacters,
+      onCheckedChange = viewModel::setNarrateTypedCharacters,
+      summary = "Each key as you type it, and each character you delete. Never in password fields.",
+    )
+    CheckboxRow(
+      label = "Typed words",
+      checked = settings.narrateTypedWords,
+      onCheckedChange = viewModel::setNarrateTypedWords,
+      summary = "The whole word when you type a space after it",
+    )
+    CheckboxRow(
       label = "App-specific narration",
       checked = settings.appAdaptersEnabled,
       onCheckedChange = viewModel::setAppAdaptersEnabled,

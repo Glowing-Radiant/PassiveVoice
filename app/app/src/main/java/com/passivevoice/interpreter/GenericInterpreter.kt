@@ -62,7 +62,7 @@ object GenericInterpreter : ActionInterpreter {
       ActionType.SCROLL -> interpretScroll(action, verbosity)
       ActionType.WINDOW_OPENED -> interpretWindowOpened(action, context, verbosity)
       ActionType.MENU_OPENED -> SpeechOutput("Menu opened")
-      else -> null // LONG_CLICK, TEXT_INPUT, CONTENT_CHANGED, FOCUS_CHANGED, etc. — collected for debug, not narrated.
+      else -> null // LONG_CLICK, CONTENT_CHANGED (TEXT_INPUT is TypingEcho's), FOCUS_CHANGED, etc. — collected for debug, not narrated.
     }
 
   private fun interpretClick(action: UserAction, verbosity: Verbosity): SpeechOutput {

@@ -31,6 +31,7 @@ import com.passivevoice.debug.DebugEventBus
 import com.passivevoice.debug.DebugLogEntry
 import com.passivevoice.interpreter.GenericInterpreter
 import com.passivevoice.interpreter.SpeechOutput
+import com.passivevoice.interpreter.TypingEcho
 import com.passivevoice.settings.NarrationPolicy
 import com.passivevoice.settings.PassiveVoiceSettings
 import com.passivevoice.settings.SettingsRepository
@@ -332,6 +333,8 @@ class PassiveVoiceService : AccessibilityService() {
     val output: SpeechOutput? =
       when {
         blockReason != null -> null
+        action.type == ActionType.TEXT_INPUT ->
+          action.textChange?.let { TypingEcho.interpret(it, settings.narrateTypedCharacters, settings.narrateTypedWords) }
         precomputed != null -> precomputed.also { interpretation += " ($appName)" }
         else -> {
           val adapter = if (settings.appAdaptersEnabled) adapterManager.forPackage(packageName) else null
@@ -346,16 +349,19 @@ class PassiveVoiceService : AccessibilityService() {
     var spoken: String? = null
     if (output != null) {
       val text = output.text
+      // Typed text is spoken but never logged (PRD §25), and a repeated key ("ll") is not a duplicate.
+      val typing = action.type == ActionType.TEXT_INPUT
+      val quoted = if (typing) "(typed text)" else "\"$text\""
       when {
-        SpeechPolicy.isMuted(talkBackActiveThrottled(now), settings.autoMuteWithTalkBack) -> suppressedReason = "Muted (TalkBack active): \"$text\""
-        contextManager.isDuplicate(text, now) -> suppressedReason = "Duplicate: \"$text\""
+        SpeechPolicy.isMuted(talkBackActiveThrottled(now), settings.autoMuteWithTalkBack) -> suppressedReason = "Muted (TalkBack active): $quoted"
+        !typing && contextManager.isDuplicate(text, now) -> suppressedReason = "Duplicate: $quoted"
         else ->
           when (speechManager.speak(text, output.priority, settings.queueMode)) {
-            null -> suppressedReason = "Speech engine not ready: \"$text\""
-            SpeechDecision.DROP -> suppressedReason = "Lower priority than current speech: \"$text\""
+            null -> suppressedReason = "Speech engine not ready: $quoted"
+            SpeechDecision.DROP -> suppressedReason = "Lower priority than current speech: $quoted"
             else -> {
-              contextManager.recordSpoken(text, now)
-              spoken = text
+              if (!typing) contextManager.recordSpoken(text, now)
+              spoken = if (typing) "(typed text)" else text
             }
           }
       }

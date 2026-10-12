@@ -44,9 +44,17 @@ object EventNormalizer {
       role = node?.role,
       value = if (type == ActionType.TOGGLE) node?.isChecked?.toString() else null,
       node = node,
+      textChange = if (type == ActionType.TEXT_INPUT) textChange(event, node) else null,
       timestamp = now,
       confidence = if (node != null) 1.0f else 0.6f,
     )
+  }
+
+  private fun textChange(event: AccessibilityEvent, node: NodeSnapshot?): TextChange? {
+    // A focused or selected label (a scrolling song title) also reports text changes; only fields take typing.
+    if (node?.isEditable == false) return null
+    val after = event.text.firstOrNull()?.toString() ?: ""
+    return TextChange.from(event.beforeText?.toString(), after, event.fromIndex, event.addedCount, event.removedCount)
   }
 
   private fun classifyWindowStateChange(node: NodeSnapshot?): ActionType =

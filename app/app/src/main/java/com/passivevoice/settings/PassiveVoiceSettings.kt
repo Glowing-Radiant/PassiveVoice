@@ -18,6 +18,10 @@ data class PassiveVoiceSettings(
   val narrateSelections: Boolean = true,
   val narrateScroll: Boolean = true,
   val narrateWindowChanges: Boolean = true,
+  /** Echo each typed or deleted character. */
+  val narrateTypedCharacters: Boolean = true,
+  /** Speak the whole word once a space ends it. */
+  val narrateTypedWords: Boolean = true,
   /** Richer narration in apps PassiveVoice knows (Instagram, YouTube): "Next reel, by …" instead of "Next item". */
   val appAdaptersEnabled: Boolean = true,
   val appProfiles: Map<String, AppProfile> = emptyMap(),

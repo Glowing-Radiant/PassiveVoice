@@ -18,6 +18,7 @@ object NarrationPolicy {
       ActionType.SELECTION, ActionType.TAB_CHANGED -> "Selection narration off".takeUnless { settings.narrateSelections }
       ActionType.SCROLL -> "Scroll narration off".takeUnless { profile?.scrollNarration ?: settings.narrateScroll }
       ActionType.WINDOW_OPENED, ActionType.MENU_OPENED -> "Screen narration off".takeUnless { settings.narrateWindowChanges }
+      ActionType.TEXT_INPUT -> "Typing echo off".takeUnless { settings.narrateTypedCharacters || settings.narrateTypedWords }
       else -> null
     }
   }
