@@ -353,7 +353,7 @@ class PassiveVoiceService : AccessibilityService() {
       val typing = action.type == ActionType.TEXT_INPUT
       val quoted = if (typing) "(typed text)" else "\"$text\""
       when {
-        SpeechPolicy.isMuted(talkBackActiveThrottled(now), settings.autoMuteWithTalkBack) -> suppressedReason = "Muted (TalkBack active): $quoted"
+        SpeechPolicy.isMuted(talkBackActiveThrottled(now), settings.autoMuteWithTalkBack) -> suppressedReason = "Muted (screen reader active): $quoted"
         !typing && contextManager.isDuplicate(text, now) -> suppressedReason = "Duplicate: $quoted"
         else ->
           when (speechManager.speak(text, output.priority, settings.queueMode)) {

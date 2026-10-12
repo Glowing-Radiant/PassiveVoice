@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
 import com.passivevoice.AppList
+import com.passivevoice.accessibility.TalkBackDetector
 import com.passivevoice.DebugLog
 import com.passivevoice.SpeechSettings
 import com.passivevoice.settings.PassiveVoiceSettings
@@ -92,12 +93,12 @@ internal fun MainScreenContent(
 
     HorizontalDivider()
 
-    SectionHeading("TalkBack")
+    SectionHeading("Screen readers")
     CheckboxRow(
-      label = "Automatically mute when TalkBack is active",
+      label = "Automatically mute when a screen reader is active",
       checked = state.settings.autoMuteWithTalkBack,
       onCheckedChange = onAutoMuteChanged,
-      summary = "Keeps the two from talking over each other.",
+      summary = "${TalkBackDetector.KNOWN_SCREEN_READER_NAMES.joinToString()}. Keeps the two from talking over each other.",
     )
 
     HorizontalDivider()
